@@ -12,6 +12,7 @@ Welcome to Principles of programming I: Imperative computation!
 
    welcome
    intro
+   dafny
    warmup
    reasoning
    c0
