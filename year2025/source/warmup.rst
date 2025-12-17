@@ -6,13 +6,15 @@ We'll consider the function shown below and take it as a case
 to work with the ``cc0`` compiler and the ``coin`` interpreter
 and learn about contracts::
 
-    int f(int x, int y)
+    method f(x : int, y : int) returns (result : int)
     {
-        int r = 1;
-        while (y > 1)
+        var r :: int = 1;
+        while y > 1
         {
-            if (y % 2 == 1)
+            if y % 2 == 1
+            {
                 r = r * x;
+            }
             x = x * x;
             y = y / 2;
         }
@@ -78,9 +80,13 @@ In this case, it happens that the recursive definition is also an
 "algorithm" to compute the power function, which lends itself
 to a recursive implementation in C0 as shown below::
 
-    int power_spec(int x, int y) {
-        if (y == 0) { return 1; }
-        return x * power_spec(x, y-1);
+    function power_spec(x : int, y : int) : int
+    {
+        if y == 0 {
+            1;
+        } else {
+            x * power_spec(x, y-1);
+        }
     }
 
 In this case, it almost looks reasonable to use this as an
@@ -107,11 +113,13 @@ is proportional to the values of those integers. You wouldn't want
 to use the following function to add two integers, given you know
 how to increment and decrement integers::
 
-    int add_spec(int m, int n) {
-        if (n == 0) { return m; }
-        m++;
-        n--;
-        return add_spec(m, n);
+    function add_spec(m: int, n: int) : int
+    {
+        if n == 0 {
+            m;
+        } else {
+            add_spec(m+1, n-1);
+        }
     }
 
 Preconditions
@@ -124,14 +132,16 @@ We need to document in our function that the input must meet that safety constra
 because we cannot guarantee a correct result if that constraint is not met. You do
 that in C0 using the ``@requires`` contract as shown below ::
 
-    int f(int x, int y)
-    //@requires y >= 0;
+    method f(x : int, y : int) returns (result : int)
+        requires y >= 0
     {
-        int r = 1;
-        while (y > 1)
+        var r :: int = 1;
+        while y > 1
         {
-            if (y % 2 == 1)
+            if y % 2 == 1
+            {
                 r = r * x;
+            }
             x = x * x;
             y = y / 2;
         }
@@ -156,13 +166,13 @@ what the ``f`` function is intended to compute. For that, we'll use the ``power_
 we wrote above. In your file, you'll need to paste the definition of that function
 above the definition of ``f`` and save your file. Then modify ``f`` to the following::
 
-    int f(int x, int y)
-    //@requires y >= 0;
-    //@ensures \result == power_spec(x,y)
+    method f(x : int, y : int) returns (result : int)
+        requires y >= 0
+        ensures result == power_spec(x,y)
     {
         ...
     }
-
+ 
 Again, try the above definition using ``coin -d pow.c0``. The "-d" flag causes ``coin``
 to check the conditions as contracts and not as comments. Does it go through fine?
 Can you make sense of what you see?
@@ -206,22 +216,23 @@ to check against the ``power_spec`` function. Therefore, we need to ensure that
 the input variables are not modified within the function body so we can do a
 valid ``@ensures`` check::
 
-    int f(int x, int y)
-    //@requires y >= 0;
-    //@ensures \result == power_spec(x,y)
+    method f(x : int, y : int) returns (result : int)
+        requires y >= 0
+        ensures result = power_spec(x,y)
     {
-        int _x = x;
-        int _y = y;
-        int r = 1;
+        var _x : int = x;
+        var _y : int = y;
+        var r :: int = 1;
 
-        while (_y > 1) {
-            if (_y % 2 == 1) {
+        while _y > 1
+        {
+            if _y % 2 == 1
+            {
                 r = r * _x;
             }
             _x = _x * _x;
             _y = _y / 2;
         }
-
         return r * _x;
     }
 
@@ -272,6 +283,8 @@ can be implemented using recursion and vice versa.
 
 .. code :: C
 
+    /* Cannot be done in Dafny since functions cannot
+    use while loops */
     int power_spec(int x, int y) {
         int r = 1;
         while (y > 0) {

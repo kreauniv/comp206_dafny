@@ -55,8 +55,8 @@ generality ::
        c = max(m,n)
        while c > 0:
            if m % c == n % c == 0:
-	       return c
-	   c = c - 1
+               return c
+           c = c - 1
        return c
 
    # Make a range of values from the largest candidate to the
@@ -68,7 +68,7 @@ generality ::
 
    # Make a list of all common factors in descending order and pick the first one.
    def gcd_spec(m, n):
-       return [f for f in range(max(m,n)+1) if f > 0 and m % f == n % f == 0][0]
+       return [f for f in range(max(m,n)+1) if f > 0 and m % f == n % f == 0][-1]
  
 
    # Make a list of all common factors and pick the largest.
@@ -146,12 +146,16 @@ Let's do a straight forward translation to C0.
 
 .. code-block:: C
 
-   int gcd(int m, int n) {
-        while (m > 0 && n > 0) {
-            m = m % n;
-            n = n % m;
+    method gcd(m: int, n: int) returns (r: int)
+    {
+        var m1: int = m;
+        var n1: int = n;
+        while m1 > 0 && n1 > 0
+        {
+            m1 := m1 % n1;
+            n1 := n1 % m1
         }
-        return m + n;
+        return m1 + n1
     }
 
 This translation indicates the failings of not having an accurate mental model
@@ -165,16 +169,20 @@ value for ``n`` using the updated ``m``. The way to address this is to
 store away the calculations in temporary variables and then perform the
 assignment.
 
-.. code-block:: C
+.. code-block:: dafny
 
-   int gcd(int m, int n) {
-        while (m > 0 && n > 0) {
-            int tm = m % n;
-            int tn = n % m;
-            m = tm;
-            n = tn;
+    method gcd(m: int, n: int) returns (r: int)
+    {
+        var m1: int = m;
+        var n1: int = n;
+        while m1 > 0 && n1 > 0
+        {
+            var tm: int = m1 % n1;
+            var tn: int = n1 % m1;
+            m1 := tm;
+            n1 := tn;
         }
-        return m + n;
+        return m1 + n1
     }
 
 Yes we haven't fixed the logical bug, but at least our translation is now
@@ -188,6 +196,21 @@ to translation to C0 than the others, since the other versions rely on
 python facilities that don't exist in C0.
 
 .. code-block:: C
+
+    function divisors(m: int) : set<int>
+        requires m > 0
+    {
+        set d: int | 0 < d <= m :: m % d == 0
+    }
+
+    function gcd_spec(m: int, n: int) : int
+    {
+        if m < n {
+            gcd_spec(n, m)
+        } else {
+            max(divisors(m) * divisors(n))
+        }
+    }
 
    int gcd_spec(int m, int n) {
         if (m < n) { return gcd_spec(n, m); }

@@ -6,28 +6,34 @@ named ``f`` in the form shown below --
 
 .. code-block :: c
 
-    int power_spec(int x, int y) {
-        if (y == 0) { return 1; }
-        return power_spec{x, y - 1) * x;
+    function power_spec(x: int, y: int) : int
+    {
+        if y == 0 {
+            1;
+        } else {
+            power_spec(x,y-1) * x;
+        }
     }
 
-    int f(int x, int y)
-    //@requires y >= 0;
-    //@ensures \result == power_spec{x,y);
+    method f(x: int, y: int) returns (result: int)
+        requires y >= 0
+        ensures result == power_spec(x,y)
     {
-        int x1 = x;
-        int y1 = y;
-        int r = 1;
-        while (y1 > 1)
+        var x1: int = x;
+        var y1: int = y;
+        var r: int = 1;
+
+        while y1 > 1
         {
-            if (y1 % 2 == 1) { 
+            if y1 % 2 == 1 {
                 r = x1 * r;
             }
-            x1 = x1 * x1; 
+            x1 = x1 * x1;
             y1 = y1 / 2;
         }
+
         return r * x1;
-    }
+}
 
 The above code has a bug in it and in this part, we'll find out what the
 bug is and look at ways to fix it. How do we know there's a bug in there?
@@ -48,14 +54,14 @@ What is a while loop?
 All imperative programs that feature a while loop, have it structured
 in the following manner ::
 
-    while (<<condition derived from state>>) {
+    while <<condition derived from state>> {
         <<steps that modify the state>>
     }
 
 In our case, the ``<<condition derived from state>>`` is ``y > 1``
 and the ``<<steps that modify the state>>`` are ::
 
-    if (y1 % 2 == 1) {
+    if y1 % 2 == 1 {
         r = r * x1;
     }
     x1 = x1 * x1;
@@ -216,15 +222,17 @@ we get our answer directly in :math:`r_n` which we can return. Therefore to addr
 
 The corrected program therefore is ::
 
-    int f(int x, int y)
-    //@requires y >= 0;
-    //@ensures \result == power_spec(x, y)
+    method f(x: int, y: int) returns (result: int)
+        requires y >= 0
+        ensures result == power_spec(x,y)
     {
-        int x1 = x;
-        int y1 = y;
-        int r = 1;
-        while (y1 > 0) {
-            if (y1 % 2 == 1) {
+        var x1: int = x;
+        var y1: int = y;
+        var r: int = 1;
+
+        while y1 > 0
+        {
+            if y1 % 2 == 1 {
                 r = r * x1;
             }
             x1 = x1 * x1;
@@ -261,6 +269,29 @@ us declare these using the ``//@loop_invariant`` contract and a somewhat general
         //@assert y1 == 0;
         return r;
     }
+    method f(x: int, y: int) returns (result: int)
+        requires y >= 0
+        ensures result == power_spec(x,y)
+    {
+        var x1: int = x;
+        var y1: int = y;
+        var r: int = 1;
+
+        while y1 > 0
+            invariant y1 >= 0
+            invariant r * power_spec(x1, y1) == power_spec(x, y)
+            decreases y1
+        {
+            if y1 % 2 == 1 {
+                r = r * x1;
+            }
+            x1 = x1 * x1;
+            y1 = y1 / 2;
+        }
+        assert y1 == 0;
+        return r;
+    }
+
 
 The ``y1 >= 0`` invariant is a requirement for us because otherwise we are not assured
 of the safety of the ``power_spec(x1, y1)`` call.
@@ -302,22 +333,22 @@ function ``f`` is now made explicit in the code itself. You do not need to
 infer anything else given these annotations ... apart maybe from some
 mathematical facts.
 
-1. The ``//@requires y >= 0;`` and ``//@ensures \result == power_spec(x,y);``,
+1. The ``requires y >= 0`` and ``ensures result == power_spec(x,y)``,
    if they are never violated, gives us the necessary assurance to rely on ``f``
    -- they assert both the **safety** and **correctness** of ``f``.
 
-2. The ``//@loop_invariant y1 >= 0;`` tells us that it is safe to make checking
+2. The ``invariant y1 >= 0`` tells us that it is safe to make checking
    calls to ``power_spec(x1,y1)``.
 
-3. The ``//@loop_invariant r1*power_spec(x1,y1) == power_spec(x,y);`` tells us that
+3. The ``loop_invariant r1*power_spec(x1,y1) == power_spec(x,y)`` tells us that
    we don't need to worry about the contents of the loop and can focus on how
    the last value or ``r`` on exit (or even if the loop is never entered) gives
    us the answer.
 
-4. The ``//@assert y1 == 0;`` tells us that the ``return r;`` is indeed the
+4. The ``assert y1 == 0;`` tells us that the ``return r;`` is indeed the
    correct result since ``power_spec(x1,y1)`` will then be 1.
 
-5. Based on (4), we can reason that the ``//@ensures..`` condition is indeed
+5. Based on (4), we can reason that the ``ensures..`` condition is indeed
    true and therefore our function ``f`` is **correct**.
 
 Therefore any fact we need to use in our reasoning process is available in
@@ -431,10 +462,12 @@ of m and n does this function produce the correct result?", you might answer
 to examine the code, perform some logical reasoning in your head and then
 articulate that as an explanation.::
 
-    int gcd(int m, int n) {
-        while (m > 0 && n > 0) {
-            int m1 = m % n;
-            int n1 = n % m;
+    method gcd(m: int, n: int) returns (result: int)
+    {
+        while m > 0 && n > 0
+        {
+            var m1: int = m % n;
+            var n1: int = n % m;
             m = m1;
             n = n1;
         }
@@ -446,12 +479,14 @@ question, you can just point me to the ``@requires`` line  and say "because this
 line says so". Of course, the understanding here is that you've completed your
 analysis of the function and what you can point to is factually accurate::
 
-    int gcd(int m, int n)
-    //@requires m > 0 && n > 0;
+    method gcd(m: int, n: int) returns (result: int)
+        requires m > 0
+        requires n > 0
     {
-        while (m > 0 && n > 0) {
-            int m1 = m % n;
-            int n1 = n % m;
+        while m > 0 && n > 0
+        {
+            var m1: int = m % n;
+            var n1: int = n % m;
             m = m1;
             n = n1;
         }

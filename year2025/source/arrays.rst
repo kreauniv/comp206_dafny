@@ -4,7 +4,7 @@ Arrays
 We saw the basics of arrays in the class on C0. To recap,
 arrays are declared using a syntax that is read right to left::
 
-    int [] a = alloc_array(int, 10);
+    var a: array<int> = new int[10];
 
 The ``int []`` type expression is to be read right-to-left
 as "array of ints". So if you wanted an array of pointers
@@ -28,16 +28,16 @@ This is because the value associated with ``a`` and ``b``
 is simply the starting address at which the sequence of items
 occurs in memory. The same applies to arrays in C0 (and C) too::
 
-    int [] a = alloc_array(int, 3);
-    a[0] = 13;
-    a[1] = 17;
-    a[2] = 19;
-    int [] b = a;
-    printint(a[1]); // Shows 17
-    printint(b[1]); // Shows 17
-    a[1] = 23;
-    printint(a[1]); // Shows 23
-    printint(b[1]); // Shows 23
+    var a: array<int> = new int[3];
+    a[0] := 13;
+    a[1] := 17;
+    a[2] := 19;
+    var b: array<int> = a;
+    print a[1], "\n"; // Shows 17
+    print b[1], "\n"; // Shows 17
+    a[1] := 23;
+    print a[1], "\n"; // Shows 23
+    print b[1], "\n"; // Shows 23
 
 When you type ``int [] a = alloc_array(int, 5);`` in ``coin -d``, you'll see a
 hexadecimal number printed out next to ``a`` after executing that statement.
@@ -62,16 +62,25 @@ There is another looping construct in C0 (and C)
 called ``for``, which is more convenient for looping
 through indexed structures like arrays::
 
-    for (<initialization>; <condition>; <update>) {
-        <loop-body>;
+    for <variable>: <type> := <startval> to <endval>
+        invariant <condition>
+    {
+        <body>
+    }
+
+    for <variable>: <type> := <startval> downto <endval>
+        invariant <condition>
+    {
+        <body>
     }
 
 The above is exactly equivalent to::
 
-    <initialization>;
-    while (<condition>) {
+    var <variable>: <type> = <startval>;
+    while (<variable> < <endval>)
+    {
         <loop-body>;
-        <update>;
+        <variable> := <variable> +/- 1;
     }
 
 So the ``for`` loop form is a syntactic convenience that
@@ -84,7 +93,8 @@ update a loop variable.
 The form you're most likely to encounter in array-based
 code is::
 
-    for(int i = 0; i < n; i++) {
+    for i: int = 0 to n
+    {
         // do something with array a[i]
     }
 
@@ -106,51 +116,50 @@ To copy an array, we need to --
 
 3. Return the result array.
 
-.. code :: C
+.. code :: dafny
 
-    int [] copy_array(int [] a, int n)
-    //@requires n > 0;
-    //@requires a != NULL;
-    //@ensures \length(\result) == n;
+    method copy_array(a: array<int>, n: int) returns (b: array<int>)
+        requires n > 0
+        requires a != null
+        ensures b.Length == n
     {
-        int [] b = alloc_array(int, n);
-        for (int i = 0; i < n; ++i)
-        //@loop_invariant i >= 0;
+        b := new int[n];
+        for i := 0 to n
+            invariant i >= 0
         {
             b[i] = a[i];
         }
-        return b;
     }
 
 We can add some redundant but instructive checks to this as well --
 where we declare that ``copy_array`` will indeed produce a copy of
 the input array --
 
-.. code :: C
+.. code :: dafny
 
-    bool have_same_values(int [] a, int [] b, int n) {
-        for (int i = 0; i < n; ++i) {
-            if (a[i] != b[i]) {
-                return false;
-            }
-        }
-        return true;
+    function have_same_values(a: array<int>, b: arrya<int>, n: int) : bool
+        requires n > 0
+        requires a.Length > 0
+        requires b.Length > 0
+        requires n <= a.Length
+        requires n <= b.Length
+    {
+        forall i: int | 0 <= i < n :: a[i] == b[i]
     }
 
-    int [] copy_array(int [] a, int n)
-    //@requires n > 0;
-    //@requires a != NULL;
-    //@ensures \length(\result) == n;
-    //@ensures have_same_values(a, \result, n);
+    method copy_array(a: array<int>, n: int) returns (b: array<int>)
+        requires n > 0
+        requires a != null
+        ensures b.Length == n
+        ensures have_same_values(a, b, n)
     {
-        int [] b = alloc_array(int, n);
-        for (int i = 0; i < n; ++i)
-        //@loop_invariant i >= 0;
-        //@loop_invariant have_same_values(a, b, i);
+        b := new int[n];
+        for i := 0 to n
+            invariant i >= 0
+            invariant have_same_values(a, b, i)
         {
             b[i] = a[i];
         }
-        return b;
     }
 
 Both the above ``have_same_values`` checks are quite redundant, since it is
@@ -162,8 +171,8 @@ If it is, then the contract clause may not be needed. For example --
 
 .. code :: C
 
-    int x = 1;
-    //@assert x == 1;
+    var x: int = 1;
+    assert x == 1;
 
 is a case where the ``@assert`` would be redundant because we know that
 the variable ``x`` was just initialized to ``1``. However, consider the
@@ -171,11 +180,11 @@ following --
 
 .. code :: C
 
-    int y = 15;
-    int *x = alloc(int);
-    (*x) = 1;
-    int z = some_function(x, y);
-    //@assert *x == 1;
+    var y: int = 15;
+    var x: array<int> = new int[1];
+    x[0] := 1;
+    var z: int = some_function(x, y);
+    assert x[1] == 1;
 
 In the above case, ``some_function(x)`` may have modified the ``int`` contents
 that ``x`` is pointing to, so the ``@assert`` is informative. However, if we
